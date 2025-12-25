@@ -1,15 +1,22 @@
 name: mssql_connection
-description: "Flutter/Dart plugin to connect to Microsoft SQL Server using Dart FFI + FreeTDS. Cross-platform: Windows, Android, iOS, macOS, Linux."
-version: 3.0.0
+description: 'Flutter/Dart plugin to connect to Microsoft SQL Server using Dart FFI + FreeTDS. Cross-platform: Windows, Android, iOS, macOS, Linux.'
+version: 3.1.0
 repository: https://github.com/Hiteshdon/mssql_connection
 homepage: https://github.com/Hiteshdon/mssql_connection
 
 environment:
-  sdk: ^3.9.0
+  # Build hooks / native assets require Dart 3.10+
+  sdk: ^3.10.0
+
+hook: hook/build.dart
 
 # Add regular dependencies here.
 dependencies:
   ffi: ^2.1.4
+  # Required for build hooks + native code assets bundling (Flutter 3.38+)
+  code_assets: ^1.0.0
+  hooks: ^1.0.0
+  logging: ^1.3.0
   # path: ^1.9.0
 
 dev_dependencies:

@@ -4,7 +4,19 @@ The `mssql_connection` plugin allows Flutter applications to seamlessly connect 
 
 🚀 Now powered by Dart FFI + FreeTDS with support for Windows, Android, iOS, macOS, and Linux. Simplify SQL Server access with a small, consistent API. 🔗
 
----
+## Requisitos (Flutter 3.38+)
+
+Este paquete usa **build hooks / native assets** (Flutter 3.38+) para empaquetar automáticamente las librerías nativas cuando se usa como dependencia en otra app.
+
+- Dart: >= 3.10
+- Flutter: >= 3.38
+
+### Estado por plataforma
+
+- Android: soportado (se empaquetan `libsybdb.so` y `libct.so` por ABI)
+- Windows: soportado (se empaquetan `sybdb.dll`, `ct.dll` y dependencias OpenSSL incluidas)
+- Linux/macOS: soportado (se empaquetan las `.so`/`.dylib` incluidas)
+- iOS: no soportado con los artefactos actuales (solo hay `.a` estáticas). El SDK todavía no soporta `StaticLinking` vía build hooks; para iOS se requiere publicar artefactos dinámicos (p.ej. XCFramework dinámico).
 
 ## Features
 
@@ -57,6 +69,7 @@ To use the MsSQL Connection plugin in your Flutter project, follow these simple 
 ## Usage/Examples
 
 ### Example Screenshots
+
 <img src="https://github.com/Hiteshdon/mssql_connection/blob/f58ae81722cd6472d2e574913b54230c0467f6e5/images/image1.png?raw=true" alt="Connection Establishing Screen" width="300"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 <img src="https://github.com/Hiteshdon/mssql_connection/blob/f58ae81722cd6472d2e574913b54230c0467f6e5/images/image2.png?raw=true" alt="Read & Write Operations Screen" width="300"/>
 
@@ -148,7 +161,8 @@ final rows = [
 ];
 final inserted = await mssqlConnection.bulkInsert('dbo.Users', rows, batchSize: 1000);
 ```
-```
+
+````
 
 ---
 
@@ -160,7 +174,7 @@ Close the database connection when it's no longer needed:
 bool isDisconnected = await mssqlConnection.disconnect();
 
 // `isDisconnected` returns true if the connection was successfully closed.
-```
+````
 
 ---
 
@@ -191,7 +205,11 @@ VALUES ('example.txt', CAST('This is some binary data' AS VARBINARY(MAX)));
 {
   "columns": ["Id", "FileName", "Data"],
   "rows": [
-    {"Id": 1, "FileName": "example.txt", "Data": "VGhpcyBpcyBzb21lIGJpbmFyeSBkYXRh"}
+    {
+      "Id": 1,
+      "FileName": "example.txt",
+      "Data": "VGhpcyBpcyBzb21lIGJpbmFyeSBkYXRh"
+    }
   ],
   "affected": 0
 }

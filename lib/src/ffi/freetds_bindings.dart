@@ -17,7 +17,8 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
-import '../native_loader.dart';
+const String _sybdbAssetId =
+    'package:mssql_connection/src/ffi/freetds_bindings.dart';
 
 // Opaque types
 base class DBPROCESS extends Opaque {}
@@ -118,11 +119,9 @@ const int DBRPCRESET = 0x0002;
 // set credentials, open a DBPROCESS (connection), and cleanly close/exit.
 /// C: void dbinit(void) — Initialize DB-Lib (call once in process before using DB-Lib)
 typedef _dbinitC = Void Function();
-typedef _dbinitDart = void Function();
 
 /// C: LOGINREC* dblogin(void) — Allocate a login record handle
 typedef _dbloginC = Pointer<LOGINREC> Function();
-typedef _dbloginDart = Pointer<LOGINREC> Function();
 
 // Note: DBSETLUSER/DBSETLPWD are macros in sybdb.h that call dbsetlname()
 // with selectors DBSETUSER/DBSETPWD. We bind dbsetlname and add thin wrappers
@@ -131,91 +130,69 @@ typedef _dbloginDart = Pointer<LOGINREC> Function();
 /// C: RETCODE dbsetlname(LOGINREC*, const char* value, int which)
 /// Use with which=DBSETUSER or DBSETPWD; DBSETLUSER/DBSETLPWD are macros.
 typedef _dbsetlnameC = Int32 Function(Pointer<LOGINREC>, Pointer<Utf8>, Int32);
-typedef _dbsetlnameDart = int Function(Pointer<LOGINREC>, Pointer<Utf8>, int);
 
 /// C: DBPROCESS* dbopen(LOGINREC*, const char* server) — Open connection
 typedef _dbopenC =
     Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>);
-typedef _dbopenDart =
-    Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>);
 
 /// C: int dbclose(DBPROCESS*) — Close connection (DBPROCESS)
 typedef _dbcloseC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbcloseDart = int Function(Pointer<DBPROCESS>);
 
 /// C: void dbexit(void) — Shutdown DB-Lib (call when done with all DB work)
 typedef _dbexitC = Void Function();
-typedef _dbexitDart = void Function();
 
 // Group: Command execution and result processing (DML/DDL and row retrieval)
 /// C: int dbcmd(DBPROCESS*, const char* sql) — Queue an SQL command string
 typedef _dbcmdC = Int32 Function(Pointer<DBPROCESS>, Pointer<Utf8>);
-typedef _dbcmdDart = int Function(Pointer<DBPROCESS>, Pointer<Utf8>);
 
 /// C: int dbsqlexec(DBPROCESS*) — Execute previously queued command(s)
 typedef _dbsqlexecC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbsqlexecDart = int Function(Pointer<DBPROCESS>);
 
 /// C: int dbresults(DBPROCESS*) — Step through result sets (SUCCEED/NO_MORE_RESULTS)
 typedef _dbresultsC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbresultsDart = int Function(Pointer<DBPROCESS>);
 
 /// C: int dbnextrow(DBPROCESS*) — Fetch next row (REG_ROW/-1 for row, NO_MORE_ROWS/-2 end)
 typedef _dbnextrowC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbnextrowDart = int Function(Pointer<DBPROCESS>);
 
 /// C: int dbnumcols(DBPROCESS*) — Column count for current result set
 typedef _dbnumcolsC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbnumcolsDart = int Function(Pointer<DBPROCESS>);
 
 /// C: const char* dbcolname(DBPROCESS*, int col) — Column name (1-based index)
 typedef _dbcolnameC = Pointer<Utf8> Function(Pointer<DBPROCESS>, Int32);
-typedef _dbcolnameDart = Pointer<Utf8> Function(Pointer<DBPROCESS>, int);
 
 /// C: int dbcoltype(DBPROCESS*, int col) — Column DB-Lib type code
 typedef _dbcoltypeC = Int32 Function(Pointer<DBPROCESS>, Int32);
-typedef _dbcoltypeDart = int Function(Pointer<DBPROCESS>, int);
 
 /// C: int dbdatlen(DBPROCESS*, int col) — Byte length of current row’s column value
 typedef _dbdatlenC = Int32 Function(Pointer<DBPROCESS>, Int32);
-typedef _dbdatlenDart = int Function(Pointer<DBPROCESS>, int);
 
 /// C: BYTE* dbdata(DBPROCESS*, int col) — Pointer to current row’s column bytes
 typedef _dbdataC = Pointer<Uint8> Function(Pointer<DBPROCESS>, Int32);
-typedef _dbdataDart = Pointer<Uint8> Function(Pointer<DBPROCESS>, int);
 
 /// C: int dbcount(DBPROCESS*) — Rows affected by last DML/DDL
 typedef _dbcountC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbcountDart = int Function(Pointer<DBPROCESS>);
 
 // Group: Timeouts and database selection
 /// C: int dbsetlogintime(int seconds) — Login/connect timeout
 typedef _dbsetlogintimeC = Int32 Function(Int32);
-typedef _dbsetlogintimeDart = int Function(int);
 
 /// C: int dbsettime(int seconds) — Query/statement timeout
 typedef _dbsettimeC = Int32 Function(Int32);
-typedef _dbsettimeDart = int Function(int);
 
 /// C: int dbuse(DBPROCESS*, const char* db) — Change current database
 typedef _dbuseC = Int32 Function(Pointer<DBPROCESS>, Pointer<Utf8>);
-typedef _dbuseDart = int Function(Pointer<DBPROCESS>, Pointer<Utf8>);
 
 // Group: LOGINREC options (e.g., enable BCP using DBSETBCP)
 /// C: int dbsetlbool(LOGINREC*, int option, int value) — Toggle login options
 typedef _dbsetlboolC = Int32 Function(Pointer<LOGINREC>, Int32, Int32);
-typedef _dbsetlboolDart = int Function(Pointer<LOGINREC>, int, int);
 
 /// C: int dbsetopt(DBPROCESS*, int option, const char* char_param, int int_param)
 typedef _dbsetoptC =
     Int32 Function(Pointer<DBPROCESS>, Int32, Pointer<Utf8>, Int32);
-typedef _dbsetoptDart =
-    int Function(Pointer<DBPROCESS>, int, Pointer<Utf8>, int);
 
 // Group: RPC for parameterized queries (e.g., sp_executesql)
 /// C: int dbrpcinit(DBPROCESS*, const char* rpcname, uint16_t options)
 typedef _dbrpcinitC = Int32 Function(Pointer<DBPROCESS>, Pointer<Utf8>, Uint16);
-typedef _dbrpcinitDart = int Function(Pointer<DBPROCESS>, Pointer<Utf8>, int);
 
 /// C: int dbrpcparam(DBPROCESS*, const char* name, uint8 status,
 ///                   int type, int maxlen, int datalen, BYTE* value)
@@ -229,24 +206,12 @@ typedef _dbrpcparamC =
       Int32 /*datalen*/,
       Pointer<Uint8> /*value*/,
     );
-typedef _dbrpcparamDart =
-    int Function(
-      Pointer<DBPROCESS>,
-      Pointer<Utf8>,
-      int,
-      int,
-      int,
-      int,
-      Pointer<Uint8>,
-    );
 
 /// C: int dbrpcsend(DBPROCESS*) — Send RPC call with parameters
 typedef _dbrpcsendC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbrpcsendDart = int Function(Pointer<DBPROCESS>);
 
 /// C: int dbsqlok(DBPROCESS*) — Finalize send; proceed to dbresults/dbnextrow
 typedef _dbsqlokC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbsqlokDart = int Function(Pointer<DBPROCESS>);
 
 // Group: Error and message handlers
 /// C: EHANDLEFUNC dberrhandle(EHANDLEFUNC handler)
@@ -260,10 +225,6 @@ typedef _errHandlerSigC =
       Pointer<Utf8> /*oserrstr*/,
     );
 typedef _dberrhandleC =
-    Pointer<NativeFunction<_errHandlerSigC>> Function(
-      Pointer<NativeFunction<_errHandlerSigC>>,
-    );
-typedef _dberrhandleDart =
     Pointer<NativeFunction<_errHandlerSigC>> Function(
       Pointer<NativeFunction<_errHandlerSigC>>,
     );
@@ -284,10 +245,6 @@ typedef _dbmsghandleC =
     Pointer<NativeFunction<_msgHandlerSigC>> Function(
       Pointer<NativeFunction<_msgHandlerSigC>>,
     );
-typedef _dbmsghandleDart =
-    Pointer<NativeFunction<_msgHandlerSigC>> Function(
-      Pointer<NativeFunction<_msgHandlerSigC>>,
-    );
 
 // Group: BCP (bulk copy) — high-throughput inserts
 /// C: int bcp_init(DBPROCESS*, const char* table, const char* datafile,
@@ -299,14 +256,6 @@ typedef _bcp_initC =
       Pointer<Utf8>,
       Pointer<Utf8>,
       Int32,
-    );
-typedef _bcp_initDart =
-    int Function(
-      Pointer<DBPROCESS>,
-      Pointer<Utf8>,
-      Pointer<Utf8>,
-      Pointer<Utf8>,
-      int,
     );
 
 /// C: int bcp_bind(DBPROCESS*, BYTE* varaddr, int prefixlen, int varlen,
@@ -322,39 +271,23 @@ typedef _bcp_bindC =
       Int32 /*type*/,
       Int32 /*varnum*/,
     );
-typedef _bcp_bindDart =
-    int Function(
-      Pointer<DBPROCESS>,
-      Pointer<Uint8>,
-      int,
-      int,
-      Pointer<Uint8>,
-      int,
-      int,
-      int,
-    );
 
 /// C: int bcp_sendrow(DBPROCESS*) — Send a single bound row
 typedef _bcp_sendrowC = Int32 Function(Pointer<DBPROCESS>);
-typedef _bcp_sendrowDart = int Function(Pointer<DBPROCESS>);
 
 /// C: int bcp_batch(DBPROCESS*) — Commit current batch; returns rows copied in batch
 typedef _bcp_batchC = Int32 Function(Pointer<DBPROCESS>);
-typedef _bcp_batchDart = int Function(Pointer<DBPROCESS>);
 
 /// C: int bcp_done(DBPROCESS*) — Finalize BCP; returns total rows copied
 typedef _bcp_doneC = Int32 Function(Pointer<DBPROCESS>);
-typedef _bcp_doneDart = int Function(Pointer<DBPROCESS>);
 
 // BCP per-row helpers
 /// C: int bcp_collen(DBPROCESS*, int newlen, int col) — Set data length for a column
 typedef _bcp_collenC = Int32 Function(Pointer<DBPROCESS>, Int32, Int32);
-typedef _bcp_collenDart = int Function(Pointer<DBPROCESS>, int, int);
 
 /// C: int bcp_colptr(DBPROCESS*, BYTE* data, int col) — Attach data pointer for a column
 typedef _bcp_colptrC =
     Int32 Function(Pointer<DBPROCESS>, Pointer<Uint8>, Int32);
-typedef _bcp_colptrDart = int Function(Pointer<DBPROCESS>, Pointer<Uint8>, int);
 
 // Group: Type conversion helper
 /// C: int dbconvert(DBPROCESS*, int srctype, BYTE* src, int srclen,
@@ -369,16 +302,6 @@ typedef _dbconvertC =
       Int32 /*desttype*/,
       Pointer<Uint8> /*dest*/,
       Int32 /*destlen*/,
-    );
-typedef _dbconvertDart =
-    int Function(
-      Pointer<DBPROCESS>,
-      int,
-      Pointer<Uint8>,
-      int,
-      int,
-      Pointer<Uint8>,
-      int,
     );
 
 // Loader of symbols from libsybdb
@@ -414,166 +337,109 @@ class DBLib {
   - Use dbsetlogintime/dbsettime for timeouts and dbuse to change database.
   - For high-throughput inserts, use BCP APIs (bcp_init/bind/sendrow/batch/done).
   */
-  final DynamicLibrary _lib;
-  late final _dbinitDart dbinit;
-  late final _dbloginDart dblogin;
-  late final _dbsetlnameDart dbsetlname;
-  late final _dbopenDart dbopen;
-  late final _dbcloseDart dbclose;
-  late final _dbexitDart dbexit;
+  void dbinit() => _native_dbinit();
+  Pointer<LOGINREC> dblogin() => _native_dblogin();
+  int dbsetlname(Pointer<LOGINREC> login, Pointer<Utf8> value, int which) =>
+      _native_dbsetlname(login, value, which);
+  Pointer<DBPROCESS> dbopen(Pointer<LOGINREC> login, Pointer<Utf8> server) =>
+      _native_dbopen(login, server);
+  int dbclose(Pointer<DBPROCESS> dbproc) => _native_dbclose(dbproc);
+  void dbexit() => _native_dbexit();
 
-  late final _dbcmdDart dbcmd;
-  late final _dbsqlexecDart dbsqlexec;
-  late final _dbresultsDart dbresults;
-  late final _dbnextrowDart dbnextrow;
-  late final _dbnumcolsDart dbnumcols;
-  late final _dbcolnameDart dbcolname;
-  late final _dbcoltypeDart dbcoltype;
-  late final _dbdatlenDart dbdatlen;
-  late final _dbdataDart dbdata;
-  late final _dbcountDart dbcount;
+  int dbcmd(Pointer<DBPROCESS> dbproc, Pointer<Utf8> sql) =>
+      _native_dbcmd(dbproc, sql);
+  int dbsqlexec(Pointer<DBPROCESS> dbproc) => _native_dbsqlexec(dbproc);
+  int dbresults(Pointer<DBPROCESS> dbproc) => _native_dbresults(dbproc);
+  int dbnextrow(Pointer<DBPROCESS> dbproc) => _native_dbnextrow(dbproc);
+  int dbnumcols(Pointer<DBPROCESS> dbproc) => _native_dbnumcols(dbproc);
+  Pointer<Utf8> dbcolname(Pointer<DBPROCESS> dbproc, int col) =>
+      _native_dbcolname(dbproc, col);
+  int dbcoltype(Pointer<DBPROCESS> dbproc, int col) =>
+      _native_dbcoltype(dbproc, col);
+  int dbdatlen(Pointer<DBPROCESS> dbproc, int col) =>
+      _native_dbdatlen(dbproc, col);
+  Pointer<Uint8> dbdata(Pointer<DBPROCESS> dbproc, int col) =>
+      _native_dbdata(dbproc, col);
+  int dbcount(Pointer<DBPROCESS> dbproc) => _native_dbcount(dbproc);
 
-  late final _dbsetlogintimeDart dbsetlogintime;
-  late final _dbsettimeDart dbsettime;
-  late final _dbuseDart dbuse;
-  late final _dbsetlboolDart dbsetlbool;
-  late final _dbsetoptDart dbsetopt;
+  int dbsetlogintime(int seconds) => _native_dbsetlogintime(seconds);
+  int dbsettime(int seconds) => _native_dbsettime(seconds);
+  int dbuse(Pointer<DBPROCESS> dbproc, Pointer<Utf8> db) =>
+      _native_dbuse(dbproc, db);
+  int dbsetlbool(Pointer<LOGINREC> login, int option, int value) =>
+      _native_dbsetlbool(login, option, value);
+  int dbsetopt(
+    Pointer<DBPROCESS> dbproc,
+    int option,
+    Pointer<Utf8> charParam,
+    int intParam,
+  ) => _native_dbsetopt(dbproc, option, charParam, intParam);
 
-  late final _dbrpcinitDart dbrpcinit;
-  late final _dbrpcparamDart dbrpcparam;
-  late final _dbrpcsendDart dbrpcsend;
-  late final _dbsqlokDart dbsqlok;
-  late final _dberrhandleDart dberrhandle;
-  late final _dbmsghandleDart dbmsghandle;
+  int dbrpcinit(
+    Pointer<DBPROCESS> dbproc,
+    Pointer<Utf8> rpcname,
+    int options,
+  ) => _native_dbrpcinit(dbproc, rpcname, options);
+  int dbrpcparam(
+    Pointer<DBPROCESS> dbproc,
+    Pointer<Utf8> name,
+    int status,
+    int type,
+    int maxlen,
+    int datalen,
+    Pointer<Uint8> value,
+  ) => _native_dbrpcparam(dbproc, name, status, type, maxlen, datalen, value);
+  int dbrpcsend(Pointer<DBPROCESS> dbproc) => _native_dbrpcsend(dbproc);
+  int dbsqlok(Pointer<DBPROCESS> dbproc) => _native_dbsqlok(dbproc);
+  Pointer<NativeFunction<_errHandlerSigC>> dberrhandle(
+    Pointer<NativeFunction<_errHandlerSigC>> handler,
+  ) => _native_dberrhandle(handler);
+  Pointer<NativeFunction<_msgHandlerSigC>> dbmsghandle(
+    Pointer<NativeFunction<_msgHandlerSigC>> handler,
+  ) => _native_dbmsghandle(handler);
 
-  late final _bcp_initDart bcp_init;
-  late final _bcp_bindDart bcp_bind;
-  late final _bcp_sendrowDart bcp_sendrow;
-  late final _bcp_batchDart bcp_batch;
-  late final _bcp_doneDart bcp_done;
-  late final _bcp_collenDart bcp_collen;
-  late final _bcp_colptrDart bcp_colptr;
-  late final _dbconvertDart dbconvert;
-
-  DBLib(this._lib) {
-    // Lookups: Connection lifecycle (init/login/open/close)
-    dbinit = _lib.lookupFunction<_dbinitC, _dbinitDart>(
-      'dbinit',
-    ); // Initialize DB-Lib
-    dblogin = _lib.lookupFunction<_dbloginC, _dbloginDart>(
-      'dblogin',
-    ); // Create LOGINREC
-    // DBSETLUSER/DBSETLPWD are macros -> bind the underlying function dbsetlname
-    dbsetlname = _lib.lookupFunction<_dbsetlnameC, _dbsetlnameDart>(
-      'dbsetlname',
-    ); // Set LOGINREC field by selector
-    dbopen = _lib.lookupFunction<_dbopenC, _dbopenDart>(
-      'dbopen',
-    ); // Open DBPROCESS connection
-    dbclose = _lib.lookupFunction<_dbcloseC, _dbcloseDart>(
-      'dbclose',
-    ); // Close DBPROCESS
-    dbexit = _lib.lookupFunction<_dbexitC, _dbexitDart>(
-      'dbexit',
-    ); // Shutdown DB-Lib
-
-    // Lookups: Command execution and results iteration (DML/DDL + rows)
-    dbcmd = _lib.lookupFunction<_dbcmdC, _dbcmdDart>('dbcmd'); // Queue SQL text
-    dbsqlexec = _lib.lookupFunction<_dbsqlexecC, _dbsqlexecDart>(
-      'dbsqlexec',
-    ); // Execute queued SQL
-    dbresults = _lib.lookupFunction<_dbresultsC, _dbresultsDart>(
-      'dbresults',
-    ); // Iterate result sets
-    dbnextrow = _lib.lookupFunction<_dbnextrowC, _dbnextrowDart>(
-      'dbnextrow',
-    ); // Fetch next row
-    dbnumcols = _lib.lookupFunction<_dbnumcolsC, _dbnumcolsDart>(
-      'dbnumcols',
-    ); // Column count
-    dbcolname = _lib.lookupFunction<_dbcolnameC, _dbcolnameDart>(
-      'dbcolname',
-    ); // Column name
-    dbcoltype = _lib.lookupFunction<_dbcoltypeC, _dbcoltypeDart>(
-      'dbcoltype',
-    ); // Column type code
-    dbdatlen = _lib.lookupFunction<_dbdatlenC, _dbdatlenDart>(
-      'dbdatlen',
-    ); // Current value byte length
-    dbdata = _lib.lookupFunction<_dbdataC, _dbdataDart>(
-      'dbdata',
-    ); // Current value pointer
-    dbcount = _lib.lookupFunction<_dbcountC, _dbcountDart>(
-      'dbcount',
-    ); // Rows affected
-
-    // Lookups: Timeouts and database selection
-    dbsetlogintime = _lib.lookupFunction<_dbsetlogintimeC, _dbsetlogintimeDart>(
-      'dbsetlogintime',
-    ); // Login timeout
-    dbsettime = _lib.lookupFunction<_dbsettimeC, _dbsettimeDart>(
-      'dbsettime',
-    ); // Statement timeout
-    dbuse = _lib.lookupFunction<_dbuseC, _dbuseDart>(
-      'dbuse',
-    ); // Change database
-    dbsetlbool = _lib.lookupFunction<_dbsetlboolC, _dbsetlboolDart>(
-      'dbsetlbool',
-    ); // Toggle login options (e.g., BCP)
-    dbsetopt = _lib.lookupFunction<_dbsetoptC, _dbsetoptDart>(
-      'dbsetopt',
-    ); // Set session options (e.g., DBTEXTSIZE)
-
-    // Lookups: RPC for parameterized queries
-    dbrpcinit = _lib.lookupFunction<_dbrpcinitC, _dbrpcinitDart>(
-      'dbrpcinit',
-    ); // Start RPC (e.g., sp_executesql)
-    dbrpcparam = _lib.lookupFunction<_dbrpcparamC, _dbrpcparamDart>(
-      'dbrpcparam',
-    ); // Add RPC parameter
-    dbrpcsend = _lib.lookupFunction<_dbrpcsendC, _dbrpcsendDart>(
-      'dbrpcsend',
-    ); // Send RPC
-    dbsqlok = _lib.lookupFunction<_dbsqlokC, _dbsqlokDart>(
-      'dbsqlok',
-    ); // Finalize send
-
-    // Lookups: error and message handlers
-    dberrhandle = _lib.lookupFunction<_dberrhandleC, _dberrhandleDart>(
-      'dberrhandle',
-    );
-    dbmsghandle = _lib.lookupFunction<_dbmsghandleC, _dbmsghandleDart>(
-      'dbmsghandle',
-    );
-
-    // Lookups: BCP (bulk copy) high-throughput inserts
-    bcp_init = _lib.lookupFunction<_bcp_initC, _bcp_initDart>(
-      'bcp_init',
-    ); // Init bulk copy
-    bcp_bind = _lib.lookupFunction<_bcp_bindC, _bcp_bindDart>(
-      'bcp_bind',
-    ); // Bind program variables
-    bcp_sendrow = _lib.lookupFunction<_bcp_sendrowC, _bcp_sendrowDart>(
-      'bcp_sendrow',
-    ); // Send row
-    bcp_batch = _lib.lookupFunction<_bcp_batchC, _bcp_batchDart>(
-      'bcp_batch',
-    ); // Commit batch
-    bcp_done = _lib.lookupFunction<_bcp_doneC, _bcp_doneDart>(
-      'bcp_done',
-    ); // Finalize bulk copy
-    bcp_collen = _lib.lookupFunction<_bcp_collenC, _bcp_collenDart>(
-      'bcp_collen',
-    ); // Set column length
-    bcp_colptr = _lib.lookupFunction<_bcp_colptrC, _bcp_colptrDart>(
-      'bcp_colptr',
-    ); // Set column pointer
-
-    // Lookup: Type conversion helper
-    dbconvert = _lib.lookupFunction<_dbconvertC, _dbconvertDart>(
-      'dbconvert',
-    ); // Convert values (fallback)
-  }
+  int bcp_init(
+    Pointer<DBPROCESS> dbproc,
+    Pointer<Utf8> table,
+    Pointer<Utf8> datafile,
+    Pointer<Utf8> errorfile,
+    int direction,
+  ) => _native_bcp_init(dbproc, table, datafile, errorfile, direction);
+  int bcp_bind(
+    Pointer<DBPROCESS> dbproc,
+    Pointer<Uint8> varaddr,
+    int prefixlen,
+    int varlen,
+    Pointer<Uint8> terminator,
+    int termlen,
+    int type,
+    int varnum,
+  ) => _native_bcp_bind(
+    dbproc,
+    varaddr,
+    prefixlen,
+    varlen,
+    terminator,
+    termlen,
+    type,
+    varnum,
+  );
+  int bcp_sendrow(Pointer<DBPROCESS> dbproc) => _native_bcp_sendrow(dbproc);
+  int bcp_batch(Pointer<DBPROCESS> dbproc) => _native_bcp_batch(dbproc);
+  int bcp_done(Pointer<DBPROCESS> dbproc) => _native_bcp_done(dbproc);
+  int bcp_collen(Pointer<DBPROCESS> dbproc, int newlen, int col) =>
+      _native_bcp_collen(dbproc, newlen, col);
+  int bcp_colptr(Pointer<DBPROCESS> dbproc, Pointer<Uint8> data, int col) =>
+      _native_bcp_colptr(dbproc, data, col);
+  int dbconvert(
+    Pointer<DBPROCESS> dbproc,
+    int srctype,
+    Pointer<Uint8> src,
+    int srclen,
+    int desttype,
+    Pointer<Uint8> dest,
+    int destlen,
+  ) => _native_dbconvert(dbproc, srctype, src, srclen, desttype, dest, destlen);
 
   /// Set the username on a LOGINREC using the DBSETUSER selector.
   ///
@@ -603,7 +469,7 @@ class DBLib {
   int dbsetlpwd(Pointer<LOGINREC> login, Pointer<Utf8> password) =>
       dbsetlname(login, password, DBSETPWD);
 
-  static DBLib load() => DBLib(NativeLoader.loadDBLib());
+  static DBLib load() => DBLib();
 
   // Expose latest DB-Lib error/message captured by installed handlers.
   // These are per-DBPROCESS (or 0 for library-level) and are cleared on read.
@@ -612,6 +478,168 @@ class DBLib {
   static String? takeLastMessage(Pointer<DBPROCESS>? dbproc) =>
       _DbLibErrorStore.takeLastMessage(dbproc);
 }
+
+// ---- @Native externals (libsybdb) ----
+
+@Native<_dbinitC>(symbol: 'dbinit', assetId: _sybdbAssetId)
+external void _native_dbinit();
+
+@Native<_dbloginC>(symbol: 'dblogin', assetId: _sybdbAssetId)
+external Pointer<LOGINREC> _native_dblogin();
+
+@Native<_dbsetlnameC>(symbol: 'dbsetlname', assetId: _sybdbAssetId)
+external int _native_dbsetlname(
+  Pointer<LOGINREC> login,
+  Pointer<Utf8> value,
+  int which,
+);
+
+@Native<_dbopenC>(symbol: 'dbopen', assetId: _sybdbAssetId)
+external Pointer<DBPROCESS> _native_dbopen(
+  Pointer<LOGINREC> login,
+  Pointer<Utf8> server,
+);
+
+@Native<_dbcloseC>(symbol: 'dbclose', assetId: _sybdbAssetId)
+external int _native_dbclose(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbexitC>(symbol: 'dbexit', assetId: _sybdbAssetId)
+external void _native_dbexit();
+
+@Native<_dbcmdC>(symbol: 'dbcmd', assetId: _sybdbAssetId)
+external int _native_dbcmd(Pointer<DBPROCESS> dbproc, Pointer<Utf8> sql);
+
+@Native<_dbsqlexecC>(symbol: 'dbsqlexec', assetId: _sybdbAssetId)
+external int _native_dbsqlexec(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbresultsC>(symbol: 'dbresults', assetId: _sybdbAssetId)
+external int _native_dbresults(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbnextrowC>(symbol: 'dbnextrow', assetId: _sybdbAssetId)
+external int _native_dbnextrow(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbnumcolsC>(symbol: 'dbnumcols', assetId: _sybdbAssetId)
+external int _native_dbnumcols(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbcolnameC>(symbol: 'dbcolname', assetId: _sybdbAssetId)
+external Pointer<Utf8> _native_dbcolname(Pointer<DBPROCESS> dbproc, int col);
+
+@Native<_dbcoltypeC>(symbol: 'dbcoltype', assetId: _sybdbAssetId)
+external int _native_dbcoltype(Pointer<DBPROCESS> dbproc, int col);
+
+@Native<_dbdatlenC>(symbol: 'dbdatlen', assetId: _sybdbAssetId)
+external int _native_dbdatlen(Pointer<DBPROCESS> dbproc, int col);
+
+@Native<_dbdataC>(symbol: 'dbdata', assetId: _sybdbAssetId)
+external Pointer<Uint8> _native_dbdata(Pointer<DBPROCESS> dbproc, int col);
+
+@Native<_dbcountC>(symbol: 'dbcount', assetId: _sybdbAssetId)
+external int _native_dbcount(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbsetlogintimeC>(symbol: 'dbsetlogintime', assetId: _sybdbAssetId)
+external int _native_dbsetlogintime(int seconds);
+
+@Native<_dbsettimeC>(symbol: 'dbsettime', assetId: _sybdbAssetId)
+external int _native_dbsettime(int seconds);
+
+@Native<_dbuseC>(symbol: 'dbuse', assetId: _sybdbAssetId)
+external int _native_dbuse(Pointer<DBPROCESS> dbproc, Pointer<Utf8> db);
+
+@Native<_dbsetlboolC>(symbol: 'dbsetlbool', assetId: _sybdbAssetId)
+external int _native_dbsetlbool(Pointer<LOGINREC> login, int option, int value);
+
+@Native<_dbsetoptC>(symbol: 'dbsetopt', assetId: _sybdbAssetId)
+external int _native_dbsetopt(
+  Pointer<DBPROCESS> dbproc,
+  int option,
+  Pointer<Utf8> charParam,
+  int intParam,
+);
+
+@Native<_dbrpcinitC>(symbol: 'dbrpcinit', assetId: _sybdbAssetId)
+external int _native_dbrpcinit(
+  Pointer<DBPROCESS> dbproc,
+  Pointer<Utf8> rpcname,
+  int options,
+);
+
+@Native<_dbrpcparamC>(symbol: 'dbrpcparam', assetId: _sybdbAssetId)
+external int _native_dbrpcparam(
+  Pointer<DBPROCESS> dbproc,
+  Pointer<Utf8> name,
+  int status,
+  int type,
+  int maxlen,
+  int datalen,
+  Pointer<Uint8> value,
+);
+
+@Native<_dbrpcsendC>(symbol: 'dbrpcsend', assetId: _sybdbAssetId)
+external int _native_dbrpcsend(Pointer<DBPROCESS> dbproc);
+
+@Native<_dbsqlokC>(symbol: 'dbsqlok', assetId: _sybdbAssetId)
+external int _native_dbsqlok(Pointer<DBPROCESS> dbproc);
+
+@Native<_dberrhandleC>(symbol: 'dberrhandle', assetId: _sybdbAssetId)
+external Pointer<NativeFunction<_errHandlerSigC>> _native_dberrhandle(
+  Pointer<NativeFunction<_errHandlerSigC>> handler,
+);
+
+@Native<_dbmsghandleC>(symbol: 'dbmsghandle', assetId: _sybdbAssetId)
+external Pointer<NativeFunction<_msgHandlerSigC>> _native_dbmsghandle(
+  Pointer<NativeFunction<_msgHandlerSigC>> handler,
+);
+
+@Native<_bcp_initC>(symbol: 'bcp_init', assetId: _sybdbAssetId)
+external int _native_bcp_init(
+  Pointer<DBPROCESS> dbproc,
+  Pointer<Utf8> table,
+  Pointer<Utf8> datafile,
+  Pointer<Utf8> errorfile,
+  int direction,
+);
+
+@Native<_bcp_bindC>(symbol: 'bcp_bind', assetId: _sybdbAssetId)
+external int _native_bcp_bind(
+  Pointer<DBPROCESS> dbproc,
+  Pointer<Uint8> varaddr,
+  int prefixlen,
+  int varlen,
+  Pointer<Uint8> terminator,
+  int termlen,
+  int type,
+  int varnum,
+);
+
+@Native<_bcp_sendrowC>(symbol: 'bcp_sendrow', assetId: _sybdbAssetId)
+external int _native_bcp_sendrow(Pointer<DBPROCESS> dbproc);
+
+@Native<_bcp_batchC>(symbol: 'bcp_batch', assetId: _sybdbAssetId)
+external int _native_bcp_batch(Pointer<DBPROCESS> dbproc);
+
+@Native<_bcp_doneC>(symbol: 'bcp_done', assetId: _sybdbAssetId)
+external int _native_bcp_done(Pointer<DBPROCESS> dbproc);
+
+@Native<_bcp_collenC>(symbol: 'bcp_collen', assetId: _sybdbAssetId)
+external int _native_bcp_collen(Pointer<DBPROCESS> dbproc, int newlen, int col);
+
+@Native<_bcp_colptrC>(symbol: 'bcp_colptr', assetId: _sybdbAssetId)
+external int _native_bcp_colptr(
+  Pointer<DBPROCESS> dbproc,
+  Pointer<Uint8> data,
+  int col,
+);
+
+@Native<_dbconvertC>(symbol: 'dbconvert', assetId: _sybdbAssetId)
+external int _native_dbconvert(
+  Pointer<DBPROCESS> dbproc,
+  int srctype,
+  Pointer<Uint8> src,
+  int srclen,
+  int desttype,
+  Pointer<Uint8> dest,
+  int destlen,
+);
 
 // Simple global store for the latest error/message per DBPROCESS.
 class _DbLibErrorStore {
