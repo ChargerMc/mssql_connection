@@ -1,0 +1,48 @@
+# The Flutter tooling requires that developers have CMake 3.14 or later
+# installed. You should not increase this version, as doing so will cause
+# the plugin to fail to compile for some customers of the plugin.
+cmake_minimum_required(VERSION 3.14)
+
+# Project-level configuration.
+set(PROJECT_NAME "mssql_connection")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+# This value is used when generating builds using this plugin, so it must
+# not be changed.
+set(PLUGIN_NAME "${PROJECT_NAME}_plugin")
+
+# Define the plugin library target.
+add_library(${PLUGIN_NAME} SHARED
+  "mssql_connection_plugin.cc"
+)
+
+# Apply standard settings for the plugin target.
+apply_standard_settings(${PLUGIN_NAME})
+
+# Symbols are hidden by default to reduce the chance of accidental conflicts
+# between plugins. This should not be removed; any symbols that should be
+# exported should be explicitly exported with the FLUTTER_PLUGIN_EXPORT macro.
+set_target_properties(${PLUGIN_NAME} PROPERTIES
+  CXX_VISIBILITY_PRESET hidden)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
+
+# Source include directories and library dependencies.
+target_include_directories(${PLUGIN_NAME} INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
+target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
+
+# List of absolute paths to libraries that should be bundled with the plugin.
+# This list could contain prebuilt libraries, or libraries that are outputs
+# of an external build step.
+set(mssql_connection_bundled_libraries
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libsybdb.so"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libsybdb.so.5"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libsybdb.so.5.1.0"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libct.so"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libct.so.4"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libct.so.4.0.0"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libcrypto.so.3"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/lib/libssl.so.3"
+  PARENT_SCOPE
+)

@@ -1,0 +1,50 @@
+// The Android Gradle Plugin builds the native code with the Android NDK.
+
+group = "com.example.mssql_connection"
+version = "1.0"
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // Provides the Android Gradle Plugin for this plugin's Android projects.
+        classpath("com.android.tools.build:gradle:8.1.0")
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+
+android {
+    // Bumping the plugin ndkVersion requires all clients of this plugin to bump
+    // the version in their app and to download a new version of the NDK.
+    ndkVersion = "23.1.7779620"
+
+    namespace = "com.example.mssql_connection"
+    compileSdk = 34
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdk = 21
+    }
+
+    // Include pre-built native libraries from jniLibs
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+}

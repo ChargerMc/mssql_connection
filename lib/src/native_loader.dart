@@ -9,6 +9,7 @@ class NativeLoader {
   static DynamicLibrary loadDBLib() {
     NativeLogger.i('loadDBLib: platform=${Platform.operatingSystem}');
     if (Platform.isAndroid) {
+      // On Android, .so files from jniLibs are automatically loaded from the app's native lib dir
       NativeLogger.i('Android: opening libsybdb.so');
       return DynamicLibrary.open('libsybdb.so');
     } else if (Platform.isIOS) {
@@ -16,79 +17,132 @@ class NativeLoader {
       NativeLogger.i('iOS: using DynamicLibrary.process()');
       return DynamicLibrary.process();
     } else if (Platform.isMacOS) {
-      // Expect the dylib to be available on the system or bundled appropriately.
-      // Try common names in order.
-      NativeLogger.i('macOS: trying common sybdb dylib names');
-      for (final name in ['libsybdb.dylib', 'libsybdb.5.dylib']) {
-        try {
-          NativeLogger.i('macOS: trying $name');
-          final lib = DynamicLibrary.open(name);
-          NativeLogger.i('macOS: opened $name');
-          return lib;
-        } catch (e) {
-          NativeLogger.w('macOS: failed $name -> $e');
-        }
+      // On macOS, dylibs are bundled in the app's Frameworks directory or plugin bundle
+      NativeLogger.i('macOS: searching for sybdb dylib');
+      final candidatePaths = <String>[];
+
+      // Try to find the executable path and derive the Frameworks directory
+      try {
+        final execPath = Platform.resolvedExecutable;
+        final appDir = File(execPath).parent.parent.path;
+        candidatePaths.add('$appDir/Frameworks/libsybdb.dylib');
+        candidatePaths.add('$appDir/Frameworks/libsybdb.5.dylib');
+        // Also check Resources for embedded dylibs
+        candidatePaths.add('$appDir/Resources/libsybdb.dylib');
+        candidatePaths.add('$appDir/Resources/libsybdb.5.dylib');
+      } catch (e) {
+        NativeLogger.w('macOS: could not determine app bundle path: $e');
       }
-    } else if (Platform.isLinux) {
-      // Prefer bundled linux/Libraries first
-      NativeLogger.i('Linux[DB]: building candidate directories');
-      final candidateDirs = <String>[];
+
+      // Fallback paths for development/testing
       try {
         final scriptDir = File.fromUri(Platform.script).parent;
-        final root = scriptDir.parent; // repo root when running from tool/
-        final rootPath = root.path;
-        candidateDirs.add('$rootPath/linux/Libraries');
+        final root = scriptDir.parent;
+        candidatePaths.add('${root.path}/macos/Libraries/lib/libsybdb.dylib');
+        candidatePaths.add('${root.path}/macos/Libraries/lib/libsybdb.5.dylib');
       } catch (_) {}
       try {
         final cwd = Directory.current.path;
-        candidateDirs.add('$cwd/linux/Libraries');
+        candidatePaths.add('$cwd/macos/Libraries/lib/libsybdb.dylib');
+        candidatePaths.add('$cwd/macos/Libraries/lib/libsybdb.5.dylib');
       } catch (_) {}
-      NativeLogger.i('Linux[DB]: candidateDirs=${candidateDirs.join('; ')}');
-      for (final dir in candidateDirs) {
-        for (final name in [
-          'libsybdb.so',
-          'libsybdb.so.5',
-          'libsybdb.so.5.1.0',
-        ]) {
-          final p = '$dir/$name';
-          try {
-            NativeLogger.i('Linux[DB]: trying $p');
-            final lib = DynamicLibrary.open(p);
-            NativeLogger.i('Linux[DB]: opened $p');
-            return lib;
-          } catch (e) {
-            NativeLogger.w('Linux[DB]: failed $p -> $e');
-          }
+
+      // System fallback names
+      candidatePaths.addAll(['libsybdb.dylib', 'libsybdb.5.dylib']);
+
+      for (final path in candidatePaths) {
+        try {
+          NativeLogger.i('macOS: trying $path');
+          final lib = DynamicLibrary.open(path);
+          NativeLogger.i('macOS: opened $path');
+          return lib;
+        } catch (e) {
+          NativeLogger.w('macOS: failed $path -> $e');
         }
       }
-      // Fallback to default name resolution on the system
-      NativeLogger.i('Linux[DB]: falling back to system names');
-      for (final name in [
+    } else if (Platform.isLinux) {
+      // On Linux, .so files are bundled in the app's lib directory
+      NativeLogger.i('Linux[DB]: searching for sybdb library');
+      final candidatePaths = <String>[];
+
+      // Try to find bundled library relative to executable
+      try {
+        final execPath = Platform.resolvedExecutable;
+        final execDir = File(execPath).parent.path;
+        candidatePaths.add('$execDir/lib/libsybdb.so');
+        candidatePaths.add('$execDir/lib/libsybdb.so.5');
+        candidatePaths.add('$execDir/lib/libsybdb.so.5.1.0');
+      } catch (e) {
+        NativeLogger.w('Linux[DB]: could not determine executable path: $e');
+      }
+
+      // Fallback paths for development/testing
+      try {
+        final scriptDir = File.fromUri(Platform.script).parent;
+        final root = scriptDir.parent;
+        final rootPath = root.path;
+        candidatePaths.add('$rootPath/linux/Libraries/lib/libsybdb.so');
+        candidatePaths.add('$rootPath/linux/Libraries/lib/libsybdb.so.5');
+      } catch (_) {}
+      try {
+        final cwd = Directory.current.path;
+        candidatePaths.add('$cwd/linux/Libraries/lib/libsybdb.so');
+        candidatePaths.add('$cwd/linux/Libraries/lib/libsybdb.so.5');
+      } catch (_) {}
+
+      // System fallback names
+      candidatePaths.addAll([
         'libsybdb.so',
         'libsybdb.so.5',
         'libsybdb.so.5.1.0',
-      ]) {
+      ]);
+
+      for (final path in candidatePaths) {
         try {
-          NativeLogger.i('Linux[DB]: trying $name');
-          final lib = DynamicLibrary.open(name);
-          NativeLogger.i('Linux[DB]: opened $name');
+          NativeLogger.i('Linux[DB]: trying $path');
+          final lib = DynamicLibrary.open(path);
+          NativeLogger.i('Linux[DB]: opened $path');
           return lib;
         } catch (e) {
-          NativeLogger.w('Linux[DB]: failed $name -> $e');
+          NativeLogger.w('Linux[DB]: failed $path -> $e');
         }
       }
     } else if (Platform.isWindows) {
-      // Try name first (if PATH already set correctly)
+      // On Windows, DLLs are bundled next to the executable
       final tried = <String>[];
       Object? lastErr;
-      // Configure modern DLL search behavior to include AddDllDirectory entries
+
+      // Configure modern DLL search behavior
       _setDefaultDllDirectories();
+
+      // First, try the bundled location next to the executable (Flutter app bundle)
+      try {
+        final execPath = Platform.resolvedExecutable;
+        final execDir = File(execPath).parent.path;
+        NativeLogger.i('Windows[DB]: executable dir = $execDir');
+
+        // Preload dependencies from the same directory
+        _preloadDependencies(execDir);
+
+        final dbPath = '$execDir\\sybdb.dll';
+        if (File(dbPath).existsSync()) {
+          _setDllDirectory(execDir);
+          NativeLogger.i('Windows[DB]: trying bundled $dbPath');
+          tried.add(dbPath);
+          return DynamicLibrary.open(dbPath);
+        }
+      } catch (e) {
+        lastErr = e;
+        NativeLogger.w('Windows[DB]: bundled location failed -> $e');
+      }
+
+      // Try by name (if PATH already set correctly)
       try {
         NativeLogger.i('Windows[DB]: trying sybdb.dll by name');
+        tried.add('sybdb.dll');
         return DynamicLibrary.open('sybdb.dll');
       } catch (e) {
         lastErr = e;
-        tried.add('sybdb.dll');
         NativeLogger.w('Windows[DB]: sybdb.dll by name failed -> $e');
       }
 
@@ -107,46 +161,22 @@ class NativeLoader {
       } catch (_) {}
       NativeLogger.i('Windows[DB]: candidateDirs=${candidateDirs.join('; ')}');
 
-      // Try to load from each candidate dir; ensure ct.dll first then sybdb.dll
+      // Try to load from each candidate dir
       for (final dir in candidateDirs) {
         try {
           NativeLogger.i('Windows[DB]: trying dir=$dir');
           _setDllDirectory(dir);
           NativeLogger.i('Windows[DB]: SetDllDirectory($dir)');
-          // Preload common dependencies if present (OpenSSL)
-          final ssl = '$dir\\libssl-1_1-x64.dll';
-          final crypto = '$dir\\libcrypto-1_1-x64.dll';
-          if (File(crypto).existsSync()) {
-            _preloadWithAlteredSearchPath(crypto);
-            NativeLogger.i('Windows[DB]: preload $crypto');
-          }
-          if (File(ssl).existsSync()) {
-            _preloadWithAlteredSearchPath(ssl);
-            NativeLogger.i('Windows[DB]: preload $ssl');
-          }
-          final ct = '$dir\\ct.dll';
+
+          _preloadDependencies(dir);
+
           final db = '$dir\\sybdb.dll';
-          // Preload using LoadLibraryExW so dependencies resolve from same dir
-          _preloadWithAlteredSearchPath(ct);
-          NativeLogger.i('Windows[DB]: preload $ct');
-          // _preloadWithAlteredSearchPath(db);
-          // NativeLogger.i('Windows[DB]: preload $db');
-          tried.add(ct + (File(ct).existsSync() ? ' (exists)' : ' (missing)'));
           tried.add(db + (File(db).existsSync() ? ' (exists)' : ' (missing)'));
           NativeLogger.i('Windows[DB]: opening $db');
-          // Ensure ct.dll is fully loaded before sybdb.dll
-          if (File(ct).existsSync()) {
-            try {
-              DynamicLibrary.open(ct);
-              NativeLogger.i('Windows[DB]: opened $ct');
-            } catch (e) {
-              NativeLogger.w('Windows[DB]: open ct.dll failed -> $e');
-            }
-          }
           return DynamicLibrary.open(db);
         } catch (e) {
           NativeLogger.w('Windows[DB]: failed -> $e');
-          lastErr = e; /* try next dir */
+          lastErr = e;
         }
       }
       throw UnsupportedError(
@@ -154,6 +184,33 @@ class NativeLoader {
       );
     }
     throw UnsupportedError('Could not load FreeTDS DB-Lib for this platform.');
+  }
+
+  /// Preload common dependencies (OpenSSL, ct.dll) from a directory
+  static void _preloadDependencies(String dir) {
+    // Preload OpenSSL if present
+    final crypto = '$dir\\libcrypto-1_1-x64.dll';
+    final ssl = '$dir\\libssl-1_1-x64.dll';
+    if (File(crypto).existsSync()) {
+      _preloadWithAlteredSearchPath(crypto);
+      NativeLogger.i('Windows: preloaded $crypto');
+    }
+    if (File(ssl).existsSync()) {
+      _preloadWithAlteredSearchPath(ssl);
+      NativeLogger.i('Windows: preloaded $ssl');
+    }
+
+    // Preload ct.dll before sybdb.dll
+    final ct = '$dir\\ct.dll';
+    if (File(ct).existsSync()) {
+      _preloadWithAlteredSearchPath(ct);
+      try {
+        DynamicLibrary.open(ct);
+        NativeLogger.i('Windows: preloaded $ct');
+      } catch (e) {
+        NativeLogger.w('Windows: preload ct.dll failed -> $e');
+      }
+    }
   }
 
   static DynamicLibrary loadCTLib() {
@@ -166,73 +223,120 @@ class NativeLoader {
       NativeLogger.i('iOS: using DynamicLibrary.process()');
       return DynamicLibrary.process();
     } else if (Platform.isMacOS) {
-      for (final name in ['libct.dylib', 'libct.4.dylib']) {
-        try {
-          NativeLogger.i('macOS: trying $name');
-          final lib = DynamicLibrary.open(name);
-          NativeLogger.i('macOS: opened $name');
-          return lib;
-        } catch (e) {
-          NativeLogger.w('macOS: failed $name -> $e');
-        }
-      }
-    } else if (Platform.isLinux) {
-      // Prefer bundled linux/Libraries first
-      NativeLogger.i('Linux[CT]: building candidate directories');
-      final candidateDirs = <String>[];
+      NativeLogger.i('macOS: searching for ct dylib');
+      final candidatePaths = <String>[];
+
+      // Try app bundle locations
+      try {
+        final execPath = Platform.resolvedExecutable;
+        final appDir = File(execPath).parent.parent.path;
+        candidatePaths.add('$appDir/Frameworks/libct.dylib');
+        candidatePaths.add('$appDir/Frameworks/libct.4.dylib');
+        candidatePaths.add('$appDir/Resources/libct.dylib');
+        candidatePaths.add('$appDir/Resources/libct.4.dylib');
+      } catch (_) {}
+
+      // Development fallbacks
       try {
         final scriptDir = File.fromUri(Platform.script).parent;
-        final root = scriptDir.parent; // repo root when running from tool/
-        final rootPath = root.path;
-        candidateDirs.add('$rootPath/linux/Libraries');
+        final root = scriptDir.parent;
+        candidatePaths.add('${root.path}/macos/Libraries/lib/libct.dylib');
+        candidatePaths.add('${root.path}/macos/Libraries/lib/libct.4.dylib');
       } catch (_) {}
       try {
         final cwd = Directory.current.path;
-        candidateDirs.add('$cwd/linux/Libraries');
+        candidatePaths.add('$cwd/macos/Libraries/lib/libct.dylib');
+        candidatePaths.add('$cwd/macos/Libraries/lib/libct.4.dylib');
       } catch (_) {}
-      NativeLogger.i('Linux[CT]: candidateDirs=${candidateDirs.join('; ')}');
-      for (final dir in candidateDirs) {
-        for (final name in ['libct.so', 'libct.so.4', 'libct.so.4.0.0']) {
-          final p = '$dir/$name';
-          try {
-            NativeLogger.i('Linux[CT]: trying $p');
-            final lib = DynamicLibrary.open(p);
-            NativeLogger.i('Linux[CT]: opened $p');
-            return lib;
-          } catch (e) {
-            NativeLogger.w('Linux[CT]: failed $p -> $e');
-          }
-        }
-      }
-      // Fallback to default name resolution on the system
-      NativeLogger.i('Linux[CT]: falling back to system names');
-      for (final name in ['libct.so', 'libct.so.4', 'libct.so.4.0.0']) {
+
+      candidatePaths.addAll(['libct.dylib', 'libct.4.dylib']);
+
+      for (final path in candidatePaths) {
         try {
-          NativeLogger.i('Linux[CT]: trying $name');
-          final lib = DynamicLibrary.open(name);
-          NativeLogger.i('Linux[CT]: opened $name');
+          NativeLogger.i('macOS: trying $path');
+          final lib = DynamicLibrary.open(path);
+          NativeLogger.i('macOS: opened $path');
           return lib;
         } catch (e) {
-          NativeLogger.w('Linux[CT]: failed $name -> $e');
+          NativeLogger.w('macOS: failed $path -> $e');
         }
       }
-    } else if (Platform.isWindows) {
-      // Try name first (if PATH already set)
-      final tried = <String>[];
-      Object? lastErr;
+    } else if (Platform.isLinux) {
+      NativeLogger.i('Linux[CT]: searching for ct library');
+      final candidatePaths = <String>[];
+
+      // Bundled location
       try {
-        NativeLogger.i('Windows[CT]: trying ct.dll by name');
-        return DynamicLibrary.open('ct.dll');
-      } catch (e) {
-        lastErr = e;
-        tried.add('ct.dll');
-        NativeLogger.w('Windows[CT]: ct.dll by name failed -> $e');
-      }
+        final execPath = Platform.resolvedExecutable;
+        final execDir = File(execPath).parent.path;
+        candidatePaths.add('$execDir/lib/libct.so');
+        candidatePaths.add('$execDir/lib/libct.so.4');
+        candidatePaths.add('$execDir/lib/libct.so.4.0.0');
+      } catch (_) {}
+
+      // Development fallbacks
       try {
         final scriptDir = File.fromUri(Platform.script).parent;
         final root = scriptDir.parent;
         final rootPath = root.path;
-        final candidateRootDirs = ['$rootPath\\windows\\Libraries'];
+        candidatePaths.add('$rootPath/linux/Libraries/lib/libct.so');
+        candidatePaths.add('$rootPath/linux/Libraries/lib/libct.so.4');
+      } catch (_) {}
+      try {
+        final cwd = Directory.current.path;
+        candidatePaths.add('$cwd/linux/Libraries/lib/libct.so');
+        candidatePaths.add('$cwd/linux/Libraries/lib/libct.so.4');
+      } catch (_) {}
+
+      candidatePaths.addAll(['libct.so', 'libct.so.4', 'libct.so.4.0.0']);
+
+      for (final path in candidatePaths) {
+        try {
+          NativeLogger.i('Linux[CT]: trying $path');
+          final lib = DynamicLibrary.open(path);
+          NativeLogger.i('Linux[CT]: opened $path');
+          return lib;
+        } catch (e) {
+          NativeLogger.w('Linux[CT]: failed $path -> $e');
+        }
+      }
+    } else if (Platform.isWindows) {
+      final tried = <String>[];
+      Object? lastErr;
+
+      // Try bundled location first
+      try {
+        final execPath = Platform.resolvedExecutable;
+        final execDir = File(execPath).parent.path;
+        final ctPath = '$execDir\\ct.dll';
+        if (File(ctPath).existsSync()) {
+          _setDllDirectory(execDir);
+          _preloadWithAlteredSearchPath(ctPath);
+          NativeLogger.i('Windows[CT]: trying bundled $ctPath');
+          tried.add(ctPath);
+          return DynamicLibrary.open(ctPath);
+        }
+      } catch (e) {
+        lastErr = e;
+        NativeLogger.w('Windows[CT]: bundled location failed -> $e');
+      }
+
+      // Try by name
+      try {
+        NativeLogger.i('Windows[CT]: trying ct.dll by name');
+        tried.add('ct.dll');
+        return DynamicLibrary.open('ct.dll');
+      } catch (e) {
+        lastErr = e;
+        NativeLogger.w('Windows[CT]: ct.dll by name failed -> $e');
+      }
+
+      // Development fallbacks
+      try {
+        final scriptDir = File.fromUri(Platform.script).parent;
+        final root = scriptDir.parent;
+        final rootPath = root.path;
+        final candidateRootDirs = ['$rootPath\\windows\\Libraries\\bin'];
         NativeLogger.i(
           'Windows[CT]: candidateDirs(root)=${candidateRootDirs.join('; ')}',
         );
@@ -243,14 +347,15 @@ class NativeLoader {
             NativeLogger.i('Windows[CT]: SetDllDirectory($dir)');
             _preloadWithAlteredSearchPath(p);
             NativeLogger.i('Windows[CT]: preload $p');
+            tried.add(p);
             return DynamicLibrary.open(p);
           }
         }
       } catch (_) {}
-      // Also add fallbacks relative to the current working directory
+
       try {
         final cwd = Directory.current.path;
-        final candidateCwdDirs = ['$cwd\\windows\\Libraries', cwd];
+        final candidateCwdDirs = ['$cwd\\windows\\Libraries\\bin', cwd];
         NativeLogger.i(
           'Windows[CT]: candidateDirs(cwd)=${candidateCwdDirs.join('; ')}',
         );
@@ -261,28 +366,18 @@ class NativeLoader {
             NativeLogger.i('Windows[CT]: SetDllDirectory($dir)');
             _preloadWithAlteredSearchPath(p);
             NativeLogger.i('Windows[CT]: preload $p');
+            tried.add(p);
             return DynamicLibrary.open(p);
           }
         }
       } catch (_) {}
-      try {
-        final cwd = Directory.current.path;
-        final p = '$cwd\\ct.dll';
-        if (File(p).existsSync()) {
-          _setDllDirectory(cwd);
-          NativeLogger.i('Windows[CT]: SetDllDirectory($cwd)');
-          _preloadWithAlteredSearchPath(p);
-          NativeLogger.i('Windows[CT]: preload $p');
-          return DynamicLibrary.open(p);
-        }
-      } catch (_) {}
+
       throw UnsupportedError(
         'Could not load FreeTDS CT-Lib for this platform. Tried: ${tried.join('; ')}${' | Last error: $lastErr'}',
       );
     }
     throw UnsupportedError('Could not load FreeTDS CT-Lib for this platform.');
   }
-
 
   static void _setDllDirectory(String dir) {
     try {
