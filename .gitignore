@@ -10,3 +10,4 @@ pubspec.lock
 .fvm/
 # ThirdParty packages
 third_party/
+.github/copilot-instructions.md
